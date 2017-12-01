@@ -6,6 +6,7 @@ COVERTMP=/tmp/cover.out
 AT = cd $(SRCROOT)
 RM = rm -fv
 GOBUILD = go build -v
+#GOBUILD = CGO_ENABLED=0 go build -v
 GOFMTCHECK = test -z `gofmt -w -s *.go | tee /dev/stderr`
 GOTEST = go test -v
 COVER = $(GOTEST) -coverprofile=$(COVERTMP) -covermode=atomic
@@ -13,6 +14,9 @@ JOINCOVER = cat $(COVERTMP) >> $(COVEROUT)
 GOTESTRACE = $(COVER) -race && $(JOINCOVER)
 GOBENCH = $(GOTEST) -run=BypassAllTestsAndRunOnlyBenchmarks -bench=
 GOBENCHALL = $(GOBENCH).
+
+BUILDTOOL := infoblox/buildtool:v6
+REGISTRY := docker.inca.infoblox.com/
 
 .PHONY: all
 all: fmt build test bench
@@ -28,7 +32,7 @@ bootstrap:
 .PHONY: clean
 clean:
 	@$(RM) $(COVEROUT)
-	@$(RM) $(BUILDPATH)
+	@$(RM) -fr $(BUILDPATH)
 
 .PHONY: fmt
 fmt: fmt-pdp fmt-pdp-yast fmt-pdp-jast fmt-pdp-jcon fmt-pdpctrl-client fmt-papcli fmt-pep fmt-pepcli fmt-pepcli-requests fmt-pepcli-test fmt-pepcli-perf fmt-pdpserver fmt-plugin fmt-egen
@@ -172,3 +176,9 @@ bench-pep: build-pdpserver
 .PHONY: bench-pdpserver
 bench-pdpserver:
 	$(AT)/pdpserver && $(GOBENCHALL)
+
+.PHONY: docker-pdpserver
+docker-pdpserver: build/pdpserver
+	docker build -f pdpserver/Dockerfile -t $(REGISTRY)pdpserver . \
+	&& docker push $(REGISTRY)pdpserver
+
